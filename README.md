@@ -1,6 +1,10 @@
 # Python-Time series modelling collection
 
-This repositories contains my work on testing out several time series techniques using various dataset available in public.
+This repositories contains my work on testing different time series techniques to dataset available in public.
+
+The data use on this time series is Airpassenger that you can download from Kaggle ; 
+
+### 1. Recursive Nerual Network
 
 The first test is on 
 
