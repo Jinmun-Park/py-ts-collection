@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler #Step 3
 from keras.preprocessing.sequence import TimeseriesGenerator #Step 4
 from keras.models import Sequential #Step 5
-from keras.layers import Dense, LSTM, Dropout, Activation
+from keras.layers import Dense, LSTM
 
 pd.set_option('display.max_rows', None)
 
@@ -132,27 +132,27 @@ prediction = []
 current_batch = train_scaled[-seq_size:] #Final data points in train
 current_batch = current_batch.reshape(1, seq_size, n_features) #Reshape
 
-## Predict future, beyond test dates
+# Predict future, beyond test dates
 future = 7 #Days
 for i in range(len(test) + future):
     current_pred = model.predict(current_batch)[0]
     prediction.append(current_pred)
     current_batch = np.append(current_batch[:,1:,:],[[current_pred]],axis=1) #np.append
 
-### Inverse transform to before scaling so we get actual numbers
+# Inverse transform to before scaling so we get actual numbers
 rescaled_prediction = scaler.inverse_transform(prediction)
 
 time_series_array = test.index  #Get dates for test data
 
-#Add new dates for the forecast period
+# Add new dates for the forecast period
 for k in range(0, future):
     time_series_array = time_series_array.append(time_series_array[-1:] + pd.DateOffset(1))
 
-#Create a dataframe to capture the forecast data
+# Create a dataframe to capture the forecast data
 df_forecast = pd.DataFrame(columns=["actual_confirmed","predicted"], index=time_series_array)
 
 df_forecast.loc[:,"predicted"] = rescaled_prediction[:,0]
 df_forecast.loc[:,"actual_confirmed"] = test["confirmed"]
 
-#Plot
+# Plot
 df_forecast.plot(title="Predictions for next 7 days")
