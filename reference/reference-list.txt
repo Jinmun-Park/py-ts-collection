@@ -1,6 +1,6 @@
 ### Python_script
 
-covideforecast_mainscript :
+covideforecast_mainscript:
   https://www.youtube.com/watch?v=97bZKO6cJfg&t=870s&ab_channel=DigitalSreeni
 
 covideforecast_supportscript :
