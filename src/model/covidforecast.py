@@ -1,24 +1,3 @@
-"""
-LSTM (Many Approaches) :
-https://stackabuse.com/solving-sequence-problems-with-lstm-in-keras/
-
-keras time series generator ;
-https://machinelearningmastery.com/how-to-use-the-timeseriesgenerator-for-time-series-forecasting-in-keras/
-
-multi step LSTM :
-https://machinelearningmastery.com/how-to-develop-lstm-models-for-multi-step-time-series-forecasting-of-household-power-consumption/
-
-Limitation of LSTM :
-https://machinelearningmastery.com/suitability-long-short-term-memory-networks-time-series-forecasting/
-
-
-Next Step-> CNN
-https://machinelearningmastery.com/how-to-develop-convolutional-neural-network-models-for-time-series-forecasting/
-
-Creating package after studying codes from URL and Youtube ;
-https://www.youtube.com/watch?v=97bZKO6cJfg&t=870s&ab_channel=DigitalSreeni
-"""
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
