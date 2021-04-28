@@ -4,53 +4,68 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler #Step 3
 from keras.preprocessing.sequence import TimeseriesGenerator #Step 4
 from keras.models import Sequential #Step 5
-from keras.layers import Dense, LSTM
+from keras.layers import Dense, LSTM #Step 5
 
-pd.set_option('display.max_rows', None)
-
-df_confirmed = pd.read_csv('src/data/time_series_covid19_confirmed_global.csv')
-print(df_confirmed.columns)
-print(df_confirmed['Country/Region'].unique)
+dir_path = 'src/data/time_series_covid19_confirmed_global.csv'
 country = "US"
 
-## Step 1 : Data Sreucture
+def data_import(dir_path, country):
 
-df_confirmed_country = df_confirmed[df_confirmed["Country/Region"] == country]
-df_confirmed_country = pd.DataFrame(df_confirmed_country[df_confirmed_country.columns[4:]].sum(),columns=["confirmed"])
-df_confirmed_country.index = pd.to_datetime(df_confirmed_country.index,format='%m/%d/%y')
+    df_confirmed = pd.read_csv(dir_path)
+    df_confirmed_country = df_confirmed[df_confirmed["Country/Region"] == country]
+    df_confirmed_country = pd.DataFrame(df_confirmed_country[df_confirmed_country.columns[4:]].sum(),columns=["confirmed"])
+    df_confirmed_country.index = pd.to_datetime(df_confirmed_country.index,format='%m/%d/%y')
 
-df_confirmed_country.plot(figsize=(10,5),title="COVID confirmed cases")
+    print('Completed showing your selected country confirmed Covid19 cases')
+    df_confirmed_country.plot(figsize=(10,5),title="COVID confirmed cases")
 
-df_confirmed_country.head(10)
-df_confirmed_country.tail(10)
-print("First 10 days", df_confirmed_country.head(10))
-print("Last 10 days", df_confirmed_country.tail(10))
-print("Total days in the dataset", len(df_confirmed_country))
+    print("First 10 days", df_confirmed_country.head(10))
+    df_confirmed_country.head(10)
+    print("Last 10 days", df_confirmed_country.tail(10))
+    df_confirmed_country.tail(10)
 
-## Step 2 : Training & Test (14 days interval)
-x = len(df_confirmed_country)-14
+    print("This is total days in the dataset", len(df_confirmed_country))
 
-train = df_confirmed_country.iloc[:x]
-test = df_confirmed_country.iloc[x:]
+    return df_confirmed_country
 
-## Step 3 : Normalization
-scaler = MinMaxScaler()
-scaler.fit(train)
+##################################################################### data import #####################################################################
+df_confirmed_country = data_import(dir_path = dir_path, country=country)
+#######################################################################################################################################################
 
-train_scaled = scaler.transform(train)
-test_scaled = scaler.transform(test)
 
-## Step 4 : TS conversion
 seq_size = 7  ## number of steps (lookback)
 n_features = 1 ## number of features. This dataset is univariate so it is 1
 
-train_generator = TimeseriesGenerator(train_scaled, train_scaled, length = seq_size, batch_size=1)
-print("Total number of samples in the original training data = ", len(train))
-print("Total number of samples in the generated data = ", len(train_generator))
+def data_preprocessing(data, seq_size):
 
-test_generator = TimeseriesGenerator(test_scaled, test_scaled, length=seq_size, batch_size=1)
-print("Total number of samples in the original training data = ", len(test)) # 14 as we're using last 14 days for test
-print("Total number of samples in the generated data = ", len(test_generator)) # 7
+    ## Step 2 : Training & Test (14 days interval)
+    x = len(data)-14
+
+    train = data.iloc[:x]
+    test = data.iloc[x:]
+
+    ## Step 3 : Normalization
+    scaler = MinMaxScaler()
+    scaler.fit(train)
+
+    train_scaled = scaler.transform(train)
+    test_scaled = scaler.transform(test)
+
+    ## Step 4 : TS conversion
+
+    train_generator = TimeseriesGenerator(train_scaled, train_scaled, length = seq_size, batch_size=1)
+    print("Total number of samples in the original training data = ", len(train))
+    print("Total number of samples in the generated data = ", len(train_generator))
+
+    test_generator = TimeseriesGenerator(test_scaled, test_scaled, length=seq_size, batch_size=1)
+    print("Total number of samples in the original training data = ", len(test)) # 14 as we're using last 14 days for test
+    print("Total number of samples in the generated data = ", len(test_generator)) # 7
+
+    return scaler, train_generator, test_generator, train, test, train_scaled, test_scaled
+
+##################################################################### data_preprocessing #####################################################################
+scaler, train_generator, test_generator, train, test, train_scaled, test_scaled = data_preprocessing(data = df_confirmed_country, seq_size = seq_size)
+##############################################################################################################################################################
 
 ## Step 5 : Modelling
 model = Sequential()
@@ -113,6 +128,7 @@ current_batch = current_batch.reshape(1, seq_size, n_features) #Reshape
 
 # Predict future, beyond test dates
 future = 7 #Days
+
 for i in range(len(test) + future):
     current_pred = model.predict(current_batch)[0]
     prediction.append(current_pred)
