@@ -1,0 +1,29 @@
+### Python_script
+
+covideforecast_mainscript :
+  https://www.youtube.com/watch?v=97bZKO6cJfg&t=870s&ab_channel=DigitalSreeni
+
+covideforecast_supportscript :
+  https://machinelearningmastery.com/tune-lstm-hyperparameters-keras-time-series-forecasting/
+
+
+### Code_understanding
+
+Solving Sequence Problems with LSTM in Keras :
+  https://stackabuse.com/solving-sequence-problems-with-lstm-in-keras/
+  
+How to Use the TimeseriesGenerator for Time Series Forecasting in Keras ;
+  https://machinelearningmastery.com/how-to-use-the-timeseriesgenerator-for-time-series-forecasting-in-keras/
+
+Multi-Step LSTM Time Series Forecasting Models for Power Usage :
+  https://machinelearningmastery.com/how-to-develop-lstm-models-for-multi-step-time-series-forecasting-of-household-power-consumption/
+
+(Limitation) On the Suitability of Long Short-Term Memory Networks for Time Series Forecasting :
+  https://machinelearningmastery.com/suitability-long-short-term-memory-networks-time-series-forecasting/
+
+
+### Next Steps
+
+How to Develop Convolutional Neural Network Models for Time Series Forecasting :
+  https://machinelearningmastery.com/how-to-develop-convolutional-neural-network-models-for-time-series-forecasting/
+
