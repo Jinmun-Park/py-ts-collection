@@ -1,6 +1,6 @@
 # Python-Time series modelling collection
 
-This repositories contains my work on testing different time series techniques to dataset available in public.
+This repositories contains my work in testing different time series techniques to apply them on dataset available in public. The objective of code building in this repository is to study deep learning in theory and test out its application to compare or add values in traditional time series forecast.
 
 The data use on this time series is Airpassenger that you can download from Kaggle ; 
 
