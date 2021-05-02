@@ -8,6 +8,7 @@ from keras.layers import LSTM, Input, Dropout #Step 5
 from keras.layers import Dense #Step 5
 from keras.layers import RepeatVector #Step 5
 from keras.layers import TimeDistributed #Step 5
+import seaborn as sns
 
 # data_import_setup
 dir_path = 'src/data/time_series_covid19_confirmed_global.csv'
@@ -172,4 +173,95 @@ def data_modelling(data, seq_size, neurons, validation_plot, fcst):
 data_modelling(data=df_confirmed_country, seq_size = 10, neurons = 128, validation_plot = 1, fcst = 1)
 ##########################################################################################################################################################
 
+
 def anomaly_modelling(data, seq_size, neurons, validation_plot, fcst):
+
+    x = len(data) - 14
+
+    train = data.iloc[:x]
+    test = data.iloc[x:]
+
+    scaler = MinMaxScaler()
+    scaler.fit(data)
+
+    train['confirmed'] = scaler.transform(train[['confirmed']])
+    test['confirmed'] = scaler.transform(test[['confirmed']])
+
+    def to_sequences(x, y, seq_size=1):
+        x_values = []
+        y_values = []
+
+        for i in range(len(x) - seq_size):
+            # print(i)
+            x_values.append(x.iloc[i:(i + seq_size)].values)
+            y_values.append(y.iloc[i + seq_size])
+
+        return np.array(x_values), np.array(y_values)
+
+    trainX, trainY = to_sequences(train, train, seq_size)
+    testX, testY = to_sequences(test, test, seq_size)
+
+    model = Sequential()
+    model.add(LSTM(neurons, input_shape=(trainX.shape[1], trainX.shape[2]))) #seq_size, n_features
+    model.add(Dropout(rate=0.2))
+
+    model.add(RepeatVector(trainX.shape[1])) #seq_size
+
+    model.add(LSTM(neurons, return_sequences=True))
+    model.add(Dropout(rate=0.2))
+    model.add(TimeDistributed(Dense(trainX.shape[2])))
+    model.compile(optimizer='adam', loss='mae')
+    model.summary()
+
+    #history = model.fit(trainX, trainY, epochs=50, steps_per_epoch=10)
+    history = model.fit(trainX, trainY, epochs=10, batch_size=32, validation_split=0.1, verbose=1)
+
+    plot1 = plt.figure(1)
+    plt.plot(history.history['loss'], label='Training loss')
+    plt.plot(history.history['val_loss'], label='Validation loss')
+    plt.title('Training and validation loss')
+    plt.legend()
+
+    trainPredict = model.predict(trainX)
+    trainMAE = np.mean(np.abs(trainPredict - trainX), axis=1)
+    testPredict = model.predict(testX)
+    testMAE = np.mean(np.abs(testPredict - testX), axis=1)
+
+    plot2 = plt.figure(2)
+    plt.hist(trainMAE, bins=30)
+    plt.title('Train MAE')
+    plot3 = plt.figure(3)
+    plt.hist(testMAE, bins=30)
+    plt.title('Test MAE')
+    plt.show(block=True)
+
+    max_trainMAE = float(input("Select your max MAE. Example) 0.3"))
+    print("Successfully completed key in your forecast period : " + str(max_trainMAE))
+
+    anomaly_df = pd.DataFrame(test[seq_size:])
+    anomaly_df['testMAE'] = testMAE
+    anomaly_df['max_trainMAE'] = max_trainMAE
+    anomaly_df['anomaly'] = anomaly_df['testMAE'] > anomaly_df['max_trainMAE']
+    anomaly_df['confirmed'] = test[seq_size:]
+
+    plot4 = plt.figure(4)
+    sns.lineplot(x=anomaly_df.index, y=anomaly_df['testMAE'], label = 'testMAE')
+    sns.lineplot(x=anomaly_df.index, y=anomaly_df['max_trainMAE'], label = 'max_trainMAE')
+    plt.title('train MAE and test MAE')
+    plt.legend()
+
+    anomaly_check = anomaly_df['anomaly'].values.sum()
+    if anomaly_check == 0:
+        print("You do not have anomaly within the range you have selected. You have selected your anomaly range as : ", max_trainMAE)
+
+    else:
+        anomalies = anomaly_df.loc[anomaly_df['anomaly'] == True]
+        anomalies = pd.DataFrame(anomalies)
+
+        inverse = pd.DataFrame(scaler.inverse_transform(anomaly_df[['confirmed']]), columns=['confirmed'])
+        time = pd.DataFrame(anomaly_df.index, columns=['date'])
+
+        plot5 = plt.figure(5)
+        sns.lineplot(x=time['date'], y=inverse['confirmed'])
+        sns.scatterplot(x=time['date'], y=scaler.inverse_transform(anomalies['confirmed']), color='r')
+        plt.show(block=True)
