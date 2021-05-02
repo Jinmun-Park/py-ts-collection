@@ -49,7 +49,7 @@ testX, testY = to_sequences(test, seq_size)
 
 print("Shape of training set : {}".format(trainX.shape))
 print("Shape of test set : {}".format(testX.shape))
-
+print(trainX.shape[1])
 
 # Modelling (Large Dens can cause overfitting)
 
