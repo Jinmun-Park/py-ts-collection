@@ -1,10 +1,13 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler #Step 3
+from sklearn.preprocessing import MinMaxScaler, StandardScaler #Step 3
 from keras.preprocessing.sequence import TimeseriesGenerator #Step 4
-from keras.models import Sequential #Step 5
-from keras.layers import Dense, LSTM #Step 5
+from keras.models import Sequential, Model #Step 5
+from keras.layers import LSTM, Input, Dropout #Step 5
+from keras.layers import Dense #Step 5
+from keras.layers import RepeatVector #Step 5
+from keras.layers import TimeDistributed #Step 5
 
 # data_import_setup
 dir_path = 'src/data/time_series_covid19_confirmed_global.csv'
@@ -17,7 +20,7 @@ def data_import(dir_path, country, case_plot):
     df_confirmed = pd.read_csv(dir_path)
     df_confirmed_country = df_confirmed[df_confirmed["Country/Region"] == country]
     df_confirmed_country = pd.DataFrame(df_confirmed_country[df_confirmed_country.columns[4:]].sum(),columns=["confirmed"])
-    df_confirmed_country.index = pd.to_datetime(df_confirmed_country.index,format='%m/%d/%y')
+    df_confirmed_country.index = pd.to_datetime(df_confirmed_country.index, format='%m/%d/%y')
 
     if case_plot == 1:
         print('Completed showing your selected country confirmed Covid19 cases')
@@ -35,23 +38,31 @@ def data_import(dir_path, country, case_plot):
     return df_confirmed_country
 
 ##################################################################### data import #####################################################################
-df_confirmed_country = data_import(dir_path = dir_path, country = country, case_plot = 0)
+df_confirmed_country = data_import(dir_path = dir_path, country = country, case_plot = 1)
 #######################################################################################################################################################
+
+data = df_confirmed_country
+seq_size = 10
+neurons = 128
+anomaly = 1
+validation_plot = 1
+fcst = 1
 
 #https://machinelearningmastery.com/tune-lstm-hyperparameters-keras-time-series-forecasting/
 
-def data_modelling(data, seq_size, neurons, validation_plot):
+def data_modelling(data, seq_size, neurons, validation_plot, fcst):
 
     ### Data Preprocessing
 
     ## Step 2 : Training & Test (14 days interval)
-    x = len(data)-14
+    x = len(data) - 14
 
     train = data.iloc[:x]
     test = data.iloc[x:]
 
     ## Step 3 : Normalization
     scaler = MinMaxScaler()
+    # scaler = StandardScalaer() #Removing mean standardize variance
     scaler.fit(train)
 
     train_scaled = scaler.transform(train)
@@ -62,22 +73,25 @@ def data_modelling(data, seq_size, neurons, validation_plot):
     print('This will lookback 7 times in your datasets')
     print('Your batch_size will be 1 by default (Time Series LSTM)')
 
-    train_generator = TimeseriesGenerator(train_scaled, train_scaled, length = seq_size, batch_size=1)
+    train_generator = TimeseriesGenerator(train_scaled, train_scaled, length=seq_size, batch_size=1)
     print("Total number of samples in the original training data = ", len(train))
     print("Total number of samples in the generated data = ", len(train_generator))
 
     test_generator = TimeseriesGenerator(test_scaled, test_scaled, length=seq_size, batch_size=1)
-    print("Total number of samples in the original training data = ", len(test)) # 14 as we're using last 14 days for test
-    print("Total number of samples in the generated data = ", len(test_generator)) # 7
+    print("Total number of samples in the original training data = ",
+          len(test))  # 14 as we're using last 14 days for test
+    print("Total number of samples in the generated data = ", len(test_generator))  # 7
 
     first_neurons = neurons
     print('Your first neurons selected in your first layer in LSTM is :', first_neurons)
-    second_neurons = int(neurons/2)
+    second_neurons = int(neurons / 2)
     print('Your first neurons selected in your first layer in LSTM is :', second_neurons)
-    first_dense = int((neurons/2)/2)
+    first_dense = int((neurons / 2) / 2)
     print('Your first dense selected in your first layer in LSTM is :', first_dense)
     second_dense = 1
     print('Your second and last dense selected in your first layer in LSTM is :', second_dense)
+
+    ### Data Modelling
 
     ## Step 5 : Modelling
 
@@ -95,14 +109,14 @@ def data_modelling(data, seq_size, neurons, validation_plot):
 
     ## Step 6 : Fitting
     history = model.fit(train_generator,
-                              validation_data=test_generator,
-                              epochs=50, steps_per_epoch=10)
+                        validation_data=test_generator,
+                        epochs=50, steps_per_epoch=10)
     loss = history.history['loss']
     val_loss = history.history['val_loss']
 
     epochs = range(1, len(loss) + 1)
 
-    if  validation_plot == 1:
+    if validation_plot == 1:
         plt.plot(epochs, loss, 'y', label='Training loss')
         plt.plot(epochs, val_loss, 'r', label='Validation loss')
         plt.title('Training and validation loss')
@@ -110,40 +124,52 @@ def data_modelling(data, seq_size, neurons, validation_plot):
         plt.ylabel('Loss')
         plt.legend()
         plt.show()
-    else :
+    else:
         print('You set default in plot. Please key in 1 to show your training & validation loss')
 
-data_modelling(data=df_confirmed_country, seq_size = 7,neurons = 128, validation_plot = 1)
+    ### Model Forecasting
 
-## Step 7 : Forecast
+    ## Step 7 : Forecast
+    if fcst == 1:
 
-prediction = []
+        prediction = []
 
-current_batch = train_scaled[-seq_size:] #Final data points in train
-current_batch = current_batch.reshape(1, seq_size, n_features) #Reshape
+        current_batch = train_scaled[-seq_size:]  # Final data points in train
+        current_batch = current_batch.reshape(1, seq_size, n_features)  # Reshape
 
-# Predict future, beyond test dates
-future = 7 #Days
+        # Predict future, beyond test dates
 
-for i in range(len(test) + future):
-    current_pred = model.predict(current_batch)[0]
-    prediction.append(current_pred)
-    current_batch = np.append(current_batch[:,1:,:],[[current_pred]],axis=1) #np.append
+        future = int(input("You have selected to produce forecast. Please type in your forecast period. Example) 7"))
+        print("Successfully completed key in your forecast period :" + str(future))
 
-# Inverse transform to before scaling so we get actual numbers
-rescaled_prediction = scaler.inverse_transform(prediction)
+        for i in range(len(test) + future):
+            current_pred = model.predict(current_batch)[0]
+            prediction.append(current_pred)
+            current_batch = np.append(current_batch[:, 1:, :], [[current_pred]], axis=1)  # np.append
 
-time_series_array = test.index  #Get dates for test data
+        # Inverse transform to before scaling so we get actual numbers
+        rescaled_prediction = scaler.inverse_transform(prediction)
 
-# Add new dates for the forecast period
-for k in range(0, future):
-    time_series_array = time_series_array.append(time_series_array[-1:] + pd.DateOffset(1))
+        time_series_array = test.index  # Get dates for test data
 
-# Create a dataframe to capture the forecast data
-df_forecast = pd.DataFrame(columns=["actual_confirmed","predicted"], index=time_series_array)
+        # Add new dates for the forecast period
+        for k in range(0, future):
+            time_series_array = time_series_array.append(time_series_array[-1:] + pd.DateOffset(1))
 
-df_forecast.loc[:,"predicted"] = rescaled_prediction[:,0]
-df_forecast.loc[:,"actual_confirmed"] = test["confirmed"]
+        # Create a dataframe to capture the forecast data
+        df_forecast = pd.DataFrame(columns=["actual_confirmed", "predicted"], index=time_series_array)
 
-# Plot
-df_forecast.plot(title="Predictions for next 7 days")
+        df_forecast.loc[:, "predicted"] = rescaled_prediction[:, 0]
+        df_forecast.loc[:, "actual_confirmed"] = test["confirmed"]
+
+        # Plot
+        df_forecast.plot(title="Predictions for next 7 days")
+        plt.show()
+    else:
+        print('You set default in plot. Please key in 1 to perform forecasting and plot')
+
+##################################################################### data modelling #####################################################################
+data_modelling(data=df_confirmed_country, seq_size = 10, neurons = 128, validation_plot = 1, fcst = 1)
+##########################################################################################################################################################
+
+def anomaly_modelling(data, seq_size, neurons, validation_plot, fcst):
