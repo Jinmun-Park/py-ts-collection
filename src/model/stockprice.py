@@ -6,41 +6,76 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import StandardScaler
 import seaborn as sns
-#from datetime import datetime
+import scipy.stats as st
+
+# data_import_setup
+dir_path = 'src/data/GE.csv'
+country = "US"
+column_select = ['Date', 'Close']
+
+def data_preprocessing(dir_path, column_select):
+
+    print('I1 : Your directory path is :', dir_path)
+    df = pd.read_csv('src/data/GE.csv')
+    print('I2 : This is length of your datasets :', len(df))
+    print('I3 : These are names of columns :', df.columns)
+    print(df.head())
+
+    # Dataset Time Series
+    #plot0 = plt.figure(0)
+    df.plot(figsize=(12,5))
+    plt.title('Figure 1 : Plot time series using all variables')
+    plt.show();
+
+    # Select columns : Date, Close
+    df_plot = df[df.columns.intersection(column_select)]
+    df_plot.plot(figsize=(12, 5))
+    plt.title('Figure 2 :Plot time series using selected variables')
+    plt.show();
+
+    # Freedman–Diaconis
+    x = df_plot['Close']
+    q25, q75 = np.percentile(x, [.25, .75])
+    bin_width = 2 * (q75 - q25) * len(x) ** (-1 / 3)
+    bins = round((x.max() - x.min()) / bin_width)
+    print("Figure 3 : Freedman–Diaconis number of bins:", bins)
+    plt.hist(x, bins=bins);
+
+    # Histogram
+    plt.hist(x, density=True, bins=82, label="Data")
+    mn, mx = plt.xlim()
+    plt.xlim(mn, mx)
+    kde_xs = np.linspace(mn, mx, 300)
+    kde = st.gaussian_kde(x)
+    plt.plot(kde_xs, kde.pdf(kde_xs), label="PDF")
+    plt.legend(loc="upper left")
+    plt.ylabel('Probability')
+    plt.xlabel('Data')
+    plt.title("Histogram");
 
 
-df = pd.read_csv('data/GE.csv')
-
-#Separate dates for future plotting
+df = pd.read_csv('src/data/GE.csv')
+print('This is length of your datasets :', len(df))
+print('These are names of columns :', df.columns)
 train_dates = pd.to_datetime(df['Date'])
-
-#Variables for training
 cols = list(df)[1:6]
-
 df_for_training = df[cols].astype(float)
 
-# df_for_plot=df_for_training.tail(5000)
-# df_for_plot.plot.line()
 
-#LSTM uses sigmoid and tanh that are sensitive to magnitude so values need to be normalized
-# normalize the dataset
 scaler = StandardScaler()
 scaler = scaler.fit(df_for_training)
 df_for_training_scaled = scaler.transform(df_for_training)
 
-
-#As required for LSTM networks, we require to reshape an input data into n_samples x timesteps x n_features. 
-#In this example, the n_features is 2. We will make timesteps = 3. 
-#With this, the resultant n_samples is 5 (as the input data has 9 rows).
 trainX = []
 trainY = []
 
 n_future = 1   # Number of days we want to predict into the future
 n_past = 14     # Number of past days we want to use to predict the future
 
-for i in range(n_past, len(df_for_training_scaled) - n_future +1):
+for i in range(n_past, len(df_for_training_scaled) - n_future +1): #14:251
     trainX.append(df_for_training_scaled[i - n_past:i, 0:df_for_training.shape[1]])
     trainY.append(df_for_training_scaled[i + n_future - 1:i + n_future, 0])
+
 
 trainX, trainY = np.array(trainX), np.array(trainY)
 

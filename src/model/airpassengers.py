@@ -30,6 +30,7 @@ train_size = int(len(df_ar) * 0.7)
 test_size = len(df_ar) - train_size
 train, test = df_ar[0:train_size,:], df_ar [train_size:len(df_ar),:]
 
+
 def to_sequences(dataset, seq_size=1):
     x = []
     y = []
