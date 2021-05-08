@@ -4,55 +4,130 @@ from keras.layers import LSTM
 from keras.layers import Dense, Dropout
 import pandas as pd
 from matplotlib import pyplot as plt
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import seaborn as sns
 import scipy.stats as st
 
 # data_import_setup
 dir_path = 'src/data/GE.csv'
-country = "US"
-column_select = ['Date', 'Close']
 
-def data_preprocessing(dir_path, column_select):
+def clean(serie):
+    output = serie[(np.isnan(serie) == False) & (np.isinf(serie) == False)]
+    return output
 
+def data_analysis(dir_path, histogram):
+
+    # STEP 1 : BRIEF INFORMATION
     print('I1 : Your directory path is :', dir_path)
-    df = pd.read_csv('src/data/GE.csv')
+    df = pd.read_csv(dir_path)
     print('I2 : This is length of your datasets :', len(df))
     print('I3 : These are names of columns :', df.columns)
     print(df.head())
 
-    # Dataset Time Series
-    #plot0 = plt.figure(0)
+    # STEP 2 : PLOT TIME SERIES
     df.plot(figsize=(12,5))
     plt.title('Figure 1 : Plot time series using all variables')
-    plt.show();
+    plt.show(block=True)
 
-    # Select columns : Date, Close
+    # STEP 3 : SELECT COLUMNS AND PLOT
+    column_select = input("INPUT : Please select your columns to plot graph. Example) Date, Close").split()
+    print("MESSAGE : Successfully completed key in your forecast period : " + str(column_select))
     df_plot = df[df.columns.intersection(column_select)]
     df_plot.plot(figsize=(12, 5))
     plt.title('Figure 2 :Plot time series using selected variables')
-    plt.show();
+    plt.show(block=True)
 
-    # Freedman–Diaconis
-    x = df_plot['Close']
-    q25, q75 = np.percentile(x, [.25, .75])
-    bin_width = 2 * (q75 - q25) * len(x) ** (-1 / 3)
-    bins = round((x.max() - x.min()) / bin_width)
-    print("Figure 3 : Freedman–Diaconis number of bins:", bins)
-    plt.hist(x, bins=bins);
+    if histogram == 1:
 
-    # Histogram
-    plt.hist(x, density=True, bins=82, label="Data")
-    mn, mx = plt.xlim()
-    plt.xlim(mn, mx)
-    kde_xs = np.linspace(mn, mx, 300)
-    kde = st.gaussian_kde(x)
-    plt.plot(kde_xs, kde.pdf(kde_xs), label="PDF")
-    plt.legend(loc="upper left")
-    plt.ylabel('Probability')
-    plt.xlabel('Data')
-    plt.title("Histogram");
+        # STEP 4 : Freedman–Diaconis
+        column_select = input("INPUT : Please select your columns to plot graph. Example) Date, Close").split()
+        print("MESSAGE : Successfully completed key in your forecast period : " + str(column_select))
 
+        x = df[df.columns.intersection(column_select)].values
+
+        q25, q75 = np.percentile(x, [.25, .75])
+        bin_width = 2 * (q75 - q25) * len(x) ** (-1 / 3)
+        bins = round((x.max() - x.min()) / bin_width)
+        print("MESSAGE : Freedman–Diaconis number of bins:", bins)
+        plt.hist(x, bins=int(bins))
+        plt.title("Figure 3 : Freedman–Diaconis Plot")
+        plt.show(block=True)
+
+        # STEP 5 : HISTOGRAM AFTER F-D
+        plt.hist(x, density=True, bins=int(bins), label="Data")
+        mn, mx = plt.xlim()
+        plt.xlim(mn, mx)
+        kde_xs = np.linspace(mn, mx, 300)
+        kde = st.gaussian_kde(clean(x))
+        plt.plot(kde_xs, kde.pdf(kde_xs), label="PDF")
+        plt.legend(loc="upper left")
+        plt.ylabel('Probability')
+        plt.xlabel('Data')
+        plt.title("Figure 4 : Histogram on your selected columns")
+        plt.show(block=True)
+    else:
+        print('MESSAGE : You set default in plot. Please key in 1 to show your histogram plot')
+
+data_analysis(dir_path=dir_path, histogram=1)
+
+# Univariate
+stationary = 1
+split_size = 0.8
+seq_size = 10 # Size to look back
+
+def model_multivariate(stationary, split_size):
+
+    df = pd.read_csv(dir_path)
+    column_select = input("INPUT : Please select columns to build model. Example) Close").split()
+    print("MESSAGE : Successfully completed key in your forecast period : " + str(column_select))
+    df_select = df[df.columns.intersection(column_select)].astype(float)
+
+    # STEP 1 : SCALER
+    if stationary == 1:
+        print("MESSAGE : You selected stationary. Scaler will be selected StandardScaler().")
+        scaler = StandardScaler()
+    else:
+        scaler = MinMaxScaler()
+
+    # STEP 2 : TRAN & TEST SPLIT
+    scaler.fit(df_select)
+
+    train_size = int(len(df_select) * split_size)
+    train = df_select.iloc[:train_size]
+    test = df_select.iloc[train_size:]
+
+    train_scaled = scaler.transform(train)
+    test_scaled = scaler.transform(test)
+
+    # STEP 3_1 : DENSE SETTING
+    def to_sequences_dense(dataset, seq_size=1):
+        x = []
+        y = []
+
+        for i in range(len(dataset) - seq_size - 1):
+            window = dataset[i:(i + seq_size), 0]
+            x.append(window)
+            y.append(dataset[i + seq_size, 0])
+
+        return np.array(x), np.array(y)
+
+    trainX, trainY = to_sequences_dense(train_scaled, seq_size)
+    testX, testY = to_sequences_dense(test_scaled, seq_size)
+
+    # STEP 3_2 : LSTM SETTING
+    def to_sequences_lstm(x, y, seq_size=1):
+        x_values = []
+        y_values = []
+
+        for i in range(len(x) - seq_size):
+            # print(i)
+            x_values.append(x.iloc[i:(i + seq_size)].values)
+            y_values.append(y.iloc[i + seq_size])
+
+        return np.array(x_values), np.array(y_values)
+
+    trainX, trainY = to_sequences_lstm(train, train, seq_size)
+    testX, testY = to_sequences_lstm(test, test, seq_size)
 
 df = pd.read_csv('src/data/GE.csv')
 print('This is length of your datasets :', len(df))
@@ -60,7 +135,6 @@ print('These are names of columns :', df.columns)
 train_dates = pd.to_datetime(df['Date'])
 cols = list(df)[1:6]
 df_for_training = df[cols].astype(float)
-
 
 scaler = StandardScaler()
 scaler = scaler.fit(df_for_training)
