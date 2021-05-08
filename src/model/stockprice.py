@@ -70,17 +70,70 @@ def data_analysis(dir_path, histogram):
 
 data_analysis(dir_path=dir_path, histogram=1)
 
+'''
+# STEP 2 : TRAN & TEST SPLIT
+scaler.fit(df_select)
+
+train_size = int(len(df_select) * split_size)
+train = df_select.iloc[:train_size]
+test = df_select.iloc[train_size:]
+
+train_scaled = scaler.transform(train)
+test_scaled = scaler.transform(test)
+
+# STEP 3_1 : DENSE SETTING
+def to_sequences_dense(dataset, seq_size=1):
+    x = []
+    y = []
+
+    for i in range(len(dataset) - seq_size - 1):
+        window = dataset[i:(i + seq_size), 0]
+        x.append(window)
+        y.append(dataset[i + seq_size, 0])
+
+    return np.array(x), np.array(y)
+
+trainX, trainY = to_sequences_dense(train_scaled, seq_size)
+testX, testY = to_sequences_dense(test_scaled, seq_size)
+
+# STEP 3_2 : LSTM SETTING
+def to_sequences_lstm(x, y, seq_size=1):
+    x_values = []
+    y_values = []
+
+    for i in range(len(x) - seq_size):
+        # print(i)
+        x_values.append(x.iloc[i:(i + seq_size)].values)
+        y_values.append(y.iloc[i + seq_size])
+
+    return np.array(x_values), np.array(y_values)
+
+trainX, trainY = to_sequences_lstm(train, train, seq_size)
+testX, testY = to_sequences_lstm(test, test, seq_size)
+
+'''
+
 # Univariate
 stationary = 1
 split_size = 0.8
 seq_size = 10 # Size to look back
+neurons = 64
+epochs = 20 #10
+batch_size = 16 #32
 
-def model_multivariate(stationary, split_size):
+def model_multivariate(stationary, split_size, seq_size, neurons, epochs, batch_size):
 
+    # STEP 0 : DATA SELECTION
     df = pd.read_csv(dir_path)
-    column_select = input("INPUT : Please select columns to build model. Example) Close").split()
+
+    column_select = input("INPUT : Please write column names to build your multivariate model. "
+                          "Do not write your date field. Example) Close, Open, Volume").split()
     print("MESSAGE : Successfully completed key in your forecast period : " + str(column_select))
     df_select = df[df.columns.intersection(column_select)].astype(float)
+
+    date_select = input("INPUT : Please write your date column to specify the date in your model. "
+                        "Example) Date").split()
+    train_date = pd.to_datetime(df[str(date_select)])
 
     # STEP 1 : SCALER
     if stationary == 1:
@@ -89,45 +142,54 @@ def model_multivariate(stationary, split_size):
     else:
         scaler = MinMaxScaler()
 
+    scaler = scaler.fit(df_select)
+    df_for_training_scaled = scaler.transform(df_select)
+
     # STEP 2 : TRAN & TEST SPLIT
-    scaler.fit(df_select)
+    x = []
+    y = []
 
-    train_size = int(len(df_select) * split_size)
-    train = df_select.iloc[:train_size]
-    test = df_select.iloc[train_size:]
+    n_future = 1  # Number of days we want to predict into the future
 
-    train_scaled = scaler.transform(train)
-    test_scaled = scaler.transform(test)
+    for i in range(seq_size, len(df_for_training_scaled) - n_future + 1):  # 14:251
+        x.append(df_for_training_scaled[i - seq_size:i, 0:df_for_training.shape[1]])
+        y.append(df_for_training_scaled[i + n_future - 1:i + n_future, 0])
 
-    # STEP 3_1 : DENSE SETTING
-    def to_sequences_dense(dataset, seq_size=1):
-        x = []
-        y = []
+    trainX, trainY = np.array(x), np.array(y)
 
-        for i in range(len(dataset) - seq_size - 1):
-            window = dataset[i:(i + seq_size), 0]
-            x.append(window)
-            y.append(dataset[i + seq_size, 0])
+    print('MESSAGE : trainX shape == {}.'.format(trainX.shape))
+    print('MESSAGE : trainY shape == {}.'.format(trainY.shape))
 
-        return np.array(x), np.array(y)
+    # STEP 3 : PARAMETER SETTING
+    first_neurons = neurons
+    print('Your first neurons selected in your first layer in LSTM is :', first_neurons)
+    second_neurons = int(neurons / 2)
+    print('Your first neurons selected in your first layer in LSTM is :', second_neurons)
+    first_dense = int((neurons / 2) / 2)
+    print('Your first dense selected in your first layer in LSTM is :', first_dense)
+    second_dense = 1
+    print('Your second and last dense selected in your first layer in LSTM is :', second_dense)
 
-    trainX, trainY = to_sequences_dense(train_scaled, seq_size)
-    testX, testY = to_sequences_dense(test_scaled, seq_size)
+    # STEP 4 : BUILDING MODEL
+    model = Sequential()
+    model.add(LSTM(first_neurons, activation='relu', input_shape=(trainX.shape[1], trainX.shape[2]), return_sequences=True))
+    model.add(LSTM(second_neurons, activation='relu', return_sequences=False))
+    model.add(Dropout(0.2))
+    model.add(Dense(trainY.shape[1]))
 
-    # STEP 3_2 : LSTM SETTING
-    def to_sequences_lstm(x, y, seq_size=1):
-        x_values = []
-        y_values = []
+    model.compile(optimizer='adam', loss='mse')
+    model.summary()
 
-        for i in range(len(x) - seq_size):
-            # print(i)
-            x_values.append(x.iloc[i:(i + seq_size)].values)
-            y_values.append(y.iloc[i + seq_size])
+    # STEP 5 : MODEL FIT
+    history = model.fit(trainX, trainY, epochs=epochs, batch_size=batch_size, validation_split=0.1, verbose=1)
 
-        return np.array(x_values), np.array(y_values)
+    plt.plot(history.history['loss'], label='Training loss')
+    plt.plot(history.history['val_loss'], label='Validation loss')
+    plt.title('Training and validation loss')
+    plt.legend()
+    plt.show(block=True)
 
-    trainX, trainY = to_sequences_lstm(train, train, seq_size)
-    testX, testY = to_sequences_lstm(test, test, seq_size)
+    return model
 
 df = pd.read_csv('src/data/GE.csv')
 print('This is length of your datasets :', len(df))
@@ -149,7 +211,6 @@ n_past = 14     # Number of past days we want to use to predict the future
 for i in range(n_past, len(df_for_training_scaled) - n_future +1): #14:251
     trainX.append(df_for_training_scaled[i - n_past:i, 0:df_for_training.shape[1]])
     trainY.append(df_for_training_scaled[i + n_future - 1:i + n_future, 0])
-
 
 trainX, trainY = np.array(trainX), np.array(trainY)
 
