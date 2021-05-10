@@ -235,15 +235,15 @@ model.summary()
 
 
 # fit model
-history = model.fit(trainX, trainY, epochs=10, batch_size=16, validation_split=0.1, verbose=1)
+history = model.fit(trainX, trainY, epochs=50, batch_size=32, validation_split=0.1, verbose=1)
 
-# plt.plot(history.history['loss'], label='Training loss')
-# plt.plot(history.history['val_loss'], label='Validation loss')
-# plt.legend()
+plt.plot(history.history['loss'], label='Training loss')
+plt.plot(history.history['val_loss'], label='Validation loss')
+plt.legend()
 
 #Forecasting...
 #Start with the last day in training date and predict future...
-n_future=90  #Redefining n_future to extend prediction dates beyond original n_future dates...
+n_future=60  #Redefining n_future to extend prediction dates beyond original n_future dates...
 forecast_period_dates = pd.date_range(list(train_dates)[-1], periods=n_future, freq='1d').tolist()
 
 forecast = model.predict(trainX[-n_future:]) #forecast 
@@ -268,8 +268,8 @@ original = df[['Date', 'Open']]
 original['Date']=pd.to_datetime(original['Date'])
 original = original.loc[original['Date'] >= '2020-5-1']
 
-sns.lineplot(original['Date'], original['Open'])
-sns.lineplot(df_forecast['Date'], df_forecast['Open'])
+sns.lineplot(x=original['Date'], y=original['Open'])
+sns.lineplot(x=df_forecast['Date'], y=df_forecast['Open'])
 
 
 
