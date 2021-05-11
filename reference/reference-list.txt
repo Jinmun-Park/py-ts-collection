@@ -22,8 +22,7 @@ Multi-Step LSTM Time Series Forecasting Models for Power Usage :
   https://machinelearningmastery.com/suitability-long-short-term-memory-networks-time-series-forecasting/
 
 
-### Next Steps
+### Next Steps (This will help me to write better LSTM in future)
 
-How to Develop Convolutional Neural Network Models for Time Series Forecasting :
-  https://machinelearningmastery.com/how-to-develop-convolutional-neural-network-models-for-time-series-forecasting/
+https://www.youtube.com/watch?v=4FmVIpcwl4k&ab_channel=AIEngineering
 
